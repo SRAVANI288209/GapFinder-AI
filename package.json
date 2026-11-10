@@ -1,0 +1,37 @@
+{
+  "name": "gapfinder-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GapFinder AI – Find What the Student Doesn't Know. AI-driven diagnostic learning and knowledge-gap revision planner.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.49.1",
+    "ai": "^3.4.33",
+    "clsx": "^2.1.1",
+    "groq-sdk": "^0.15.0",
+    "lucide-react": "^0.475.0",
+    "next": "14.2.24",
+    "pdf-parse": "^1.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.1",
+    "tailwind-merge": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.24",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.2"
+  }
+}

@@ -1,0 +1,546 @@
+import {
+  UserProfile,
+  Subject,
+  DocumentRecord,
+  TopicItem,
+  PastPaperQuestion,
+  QuizSession,
+  KnowledgeGapReport,
+  RevisionPlan,
+  ChatMessage,
+  DocumentChunk
+} from '@/types';
+
+export const DEMO_USER: UserProfile = {
+  id: 'demo-student-uuid-101',
+  email: 'demo@gapfinder.ai',
+  fullName: 'Arjun Sharma (BTech CS - Year 3)',
+  isDemo: true,
+  createdAt: '2025-01-15T09:00:00Z',
+};
+
+export const DEMO_SUBJECT: Subject = {
+  id: 'subj-cs301',
+  userId: DEMO_USER.id,
+  name: 'Machine Learning & Neural Systems',
+  code: 'CS-301',
+  description: 'Core BTech CS syllabus covering Supervised, Unsupervised Learning, Optimization & Deep Neural Architectures.',
+  createdAt: '2025-01-15T09:05:00Z',
+};
+
+export const DEMO_DOCUMENTS: DocumentRecord[] = [
+  {
+    id: 'doc-1',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    fileName: 'CS301_Official_University_Syllabus.pdf',
+    fileType: 'application/pdf',
+    fileSize: 342000,
+    documentType: 'syllabus',
+    pageCount: 6,
+    extractedTextSnippet: 'Department of Computer Science & Engineering. Course: CS301 Machine Learning. Unit 1: Foundations of ML. Unit 2: Classification. Unit 3: Deep Neural Networks. Unit 4: Unsupervised Learning.',
+    status: 'ready',
+    createdAt: '2025-01-16T10:00:00Z',
+  },
+  {
+    id: 'doc-2',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    fileName: 'Textbook_Ch4_Deep_Feedforward_Networks.pdf',
+    fileType: 'application/pdf',
+    fileSize: 2450000,
+    documentType: 'textbook',
+    pageCount: 38,
+    extractedTextSnippet: 'Chapter 4: Deep Feedforward Networks. Section 4.1 Architecture Design. Section 4.2 Gradient-Based Learning and Loss Functions. Section 4.3 Back-Propagation Algorithm and Computational Graphs. Section 4.4 Vanishing and Exploding Gradients.',
+    status: 'ready',
+    createdAt: '2025-01-16T10:15:00Z',
+  },
+  {
+    id: 'doc-3',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    fileName: 'Prof_Kapoor_LectureNotes_NeuralNets.txt',
+    fileType: 'text/plain',
+    fileSize: 89000,
+    documentType: 'notes',
+    pageCount: 12,
+    extractedTextSnippet: 'Class notes on Activation functions: Sigmoid vs Tanh vs ReLU. Why ReLU solves vanishing gradient in hidden layers. Chain rule derivation for a 2-layer MLP.',
+    status: 'ready',
+    createdAt: '2025-01-16T11:00:00Z',
+  },
+  {
+    id: 'doc-4',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    fileName: 'EndSem_Exam_2023_QuestionPaper.pdf',
+    fileType: 'application/pdf',
+    fileSize: 520000,
+    documentType: 'past_paper',
+    pageCount: 4,
+    extractedTextSnippet: 'Semester End Examination Dec 2023. Q1. Differentiate between L1 and L2 regularization (5M). Q2. Derive backpropagation equations for a single hidden neuron (10M). Q3. Explain vanishing gradient problem (7M).',
+    status: 'ready',
+    createdAt: '2025-01-16T11:30:00Z',
+  },
+];
+
+export const DEMO_TOPICS: TopicItem[] = [
+  {
+    id: 'topic-unit-1',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    unitNumber: 1,
+    unitName: 'Unit 1: Foundations of Machine Learning',
+    title: 'Linear Regression & Cost Functions',
+    description: 'Hypothesis representation, Ordinary Least Squares, Mean Squared Error, Gradient Descent algorithm and learning rates.',
+    parentTopicId: null,
+    examWeightage: 20,
+    orderIndex: 1,
+    subtopics: [
+      {
+        id: 'topic-1-1',
+        userId: DEMO_USER.id,
+        subjectId: DEMO_SUBJECT.id,
+        unitNumber: 1,
+        unitName: 'Unit 1: Foundations of Machine Learning',
+        title: 'Batch vs Stochastic Gradient Descent',
+        orderIndex: 2,
+      },
+      {
+        id: 'topic-1-2',
+        userId: DEMO_USER.id,
+        subjectId: DEMO_SUBJECT.id,
+        unitNumber: 1,
+        unitName: 'Unit 1: Foundations of Machine Learning',
+        title: 'Feature Scaling & Normalization',
+        orderIndex: 3,
+      }
+    ]
+  },
+  {
+    id: 'topic-unit-2',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    unitNumber: 2,
+    unitName: 'Unit 2: Classification & Optimization',
+    title: 'Logistic Regression & Regularization',
+    description: 'Sigmoid activation, binary cross-entropy loss, decision boundaries, L1 Lasso and L2 Ridge regularization.',
+    parentTopicId: null,
+    examWeightage: 25,
+    orderIndex: 4,
+    subtopics: [
+      {
+        id: 'topic-2-1',
+        userId: DEMO_USER.id,
+        subjectId: DEMO_SUBJECT.id,
+        unitNumber: 2,
+        unitName: 'Unit 2: Classification & Optimization',
+        title: 'L1 vs L2 Regularization & Sparsity',
+        orderIndex: 5,
+      },
+      {
+        id: 'topic-2-2',
+        userId: DEMO_USER.id,
+        subjectId: DEMO_SUBJECT.id,
+        unitNumber: 2,
+        unitName: 'Unit 2: Classification & Optimization',
+        title: 'Evaluation Metrics (Precision, Recall, F1, ROC-AUC)',
+        orderIndex: 6,
+      }
+    ]
+  },
+  {
+    id: 'topic-unit-3',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    unitNumber: 3,
+    unitName: 'Unit 3: Deep Neural Networks',
+    title: 'Backpropagation & Activation Functions',
+    description: 'Multi-layer Perceptron (MLP), forward pass, backpropagation calculus, vanishing gradient problem, ReLU vs Sigmoid.',
+    parentTopicId: null,
+    examWeightage: 35,
+    orderIndex: 7,
+    subtopics: [
+      {
+        id: 'topic-3-1',
+        userId: DEMO_USER.id,
+        subjectId: DEMO_SUBJECT.id,
+        unitNumber: 3,
+        unitName: 'Unit 3: Deep Neural Networks',
+        title: 'Chain Rule & Backpropagation Derivation',
+        orderIndex: 8,
+      },
+      {
+        id: 'topic-3-2',
+        userId: DEMO_USER.id,
+        subjectId: DEMO_SUBJECT.id,
+        unitNumber: 3,
+        unitName: 'Unit 3: Deep Neural Networks',
+        title: 'Vanishing & Exploding Gradients',
+        orderIndex: 9,
+      }
+    ]
+  },
+  {
+    id: 'topic-unit-4',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    unitNumber: 4,
+    unitName: 'Unit 4: Unsupervised Learning',
+    title: 'Clustering & Dimensionality Reduction',
+    description: 'K-Means clustering algorithm, Elbow method, Principal Component Analysis (PCA), Eigenvectors and covariance matrix.',
+    parentTopicId: null,
+    examWeightage: 20,
+    orderIndex: 10,
+    subtopics: [
+      {
+        id: 'topic-4-1',
+        userId: DEMO_USER.id,
+        subjectId: DEMO_SUBJECT.id,
+        unitNumber: 4,
+        unitName: 'Unit 4: Unsupervised Learning',
+        title: 'K-Means Convergence & Initialization',
+        orderIndex: 11,
+      },
+      {
+        id: 'topic-4-2',
+        userId: DEMO_USER.id,
+        subjectId: DEMO_SUBJECT.id,
+        unitNumber: 4,
+        unitName: 'Unit 4: Unsupervised Learning',
+        title: 'PCA Mathematics & Variance Preservation',
+        orderIndex: 12,
+      }
+    ]
+  }
+];
+
+export const DEMO_PAST_PAPERS: PastPaperQuestion[] = [
+  {
+    id: 'pq-1',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    questionText: 'Derive the gradient update equation for backpropagation through a single hidden layer neuron with sigmoid activation.',
+    year: '2023 EndSem',
+    marks: 10,
+    mappedTopicId: 'topic-unit-3',
+    mappedTopicName: 'Backpropagation & Activation Functions',
+    unitName: 'Unit 3: Deep Neural Networks',
+    frequencyCount: 4,
+    confidenceScore: 0.95,
+    sourceReference: 'Exam_2023_QuestionPaper.pdf, Page 2',
+  },
+  {
+    id: 'pq-2',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    questionText: 'Why does the vanishing gradient problem occur in deep neural networks with sigmoid activation, and how does ReLU resolve it?',
+    year: '2022 & 2023 EndSem',
+    marks: 7,
+    mappedTopicId: 'topic-unit-3',
+    mappedTopicName: 'Backpropagation & Activation Functions',
+    unitName: 'Unit 3: Deep Neural Networks',
+    frequencyCount: 5,
+    confidenceScore: 0.98,
+    sourceReference: 'Exam_2023_QuestionPaper.pdf, Page 3',
+  },
+  {
+    id: 'pq-3',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    questionText: 'Contrast L1 (Lasso) and L2 (Ridge) regularization. Explain mathematically why L1 creates sparse weight vectors.',
+    year: '2023 MidSem',
+    marks: 5,
+    mappedTopicId: 'topic-unit-2',
+    mappedTopicName: 'Logistic Regression & Regularization',
+    unitName: 'Unit 2: Classification & Optimization',
+    frequencyCount: 3,
+    confidenceScore: 0.92,
+    sourceReference: 'Exam_2023_QuestionPaper.pdf, Page 1',
+  },
+  {
+    id: 'pq-4',
+    userId: DEMO_USER.id,
+    subjectId: DEMO_SUBJECT.id,
+    questionText: 'State the closed-form Normal Equation for Linear Regression and discuss when it is preferred over Gradient Descent.',
+    year: '2022 MidSem',
+    marks: 6,
+    mappedTopicId: 'topic-unit-1',
+    mappedTopicName: 'Linear Regression & Cost Functions',
+    unitName: 'Unit 1: Foundations of Machine Learning',
+    frequencyCount: 2,
+    confidenceScore: 0.90,
+    sourceReference: 'Exam_2022_QuestionPaper.pdf, Page 1',
+  },
+];
+
+export const DEMO_GAP_REPORT: KnowledgeGapReport = {
+  subjectId: DEMO_SUBJECT.id,
+  subjectName: DEMO_SUBJECT.name,
+  totalTopics: 4,
+  assessedTopics: 3,
+  weakCount: 1,
+  mediumCount: 1,
+  strongCount: 1,
+  notAssessedCount: 1,
+  overallMasteryPercentage: 64,
+  generatedAt: '2025-01-16T14:30:00Z',
+  topics: [
+    {
+      topicId: 'topic-unit-3',
+      topicTitle: 'Backpropagation & Activation Functions',
+      unitName: 'Unit 3: Deep Neural Networks',
+      questionsAttempted: 5,
+      correctAnswers: 2,
+      incorrectAnswers: 3,
+      scorePercentage: 40,
+      status: 'WEAK',
+      gapReason: 'Student repeatedly failed to apply the chain rule correctly for backpropagation derivatives and incorrectly concluded that Sigmoid saturates at 1 rather than both 0 and 1.',
+      recommendation: 'Priority #1 for upcoming exam: Re-derive backpropagation on paper using Textbook Chapter 4 (pages 42–46). Practice 5 chain-rule gradient problems.',
+      examFrequency: 5,
+      history: [
+        { quizDate: '2025-01-15', score: 30 },
+        { quizDate: '2025-01-16', score: 40 },
+      ],
+    },
+    {
+      topicId: 'topic-unit-2',
+      topicTitle: 'Logistic Regression & Regularization',
+      unitName: 'Unit 2: Classification & Optimization',
+      questionsAttempted: 4,
+      correctAnswers: 2,
+      incorrectAnswers: 2,
+      scorePercentage: 62,
+      status: 'MEDIUM',
+      gapReason: 'Student understands binary cross-entropy loss, but mixed up the diamond contour geometry of L1 vs circular contour of L2 regularization.',
+      recommendation: 'Review lecture notes on L1 vs L2 penalty terms. Understand why L1 drives non-informative feature weights strictly to zero.',
+      examFrequency: 3,
+      history: [
+        { quizDate: '2025-01-14', score: 50 },
+        { quizDate: '2025-01-16', score: 62 },
+      ],
+    },
+    {
+      topicId: 'topic-unit-1',
+      topicTitle: 'Linear Regression & Cost Functions',
+      unitName: 'Unit 1: Foundations of Machine Learning',
+      questionsAttempted: 6,
+      correctAnswers: 5,
+      incorrectAnswers: 1,
+      scorePercentage: 92,
+      status: 'STRONG',
+      gapReason: 'Excellent conceptual grasp of Mean Squared Error convex surfaces, learning rate tuning, and feature normalization.',
+      recommendation: 'Solid mastery! Spend minimal time here. Just do a quick 10-minute formula review before the exam.',
+      examFrequency: 2,
+      history: [
+        { quizDate: '2025-01-13', score: 85 },
+        { quizDate: '2025-01-16', score: 92 },
+      ],
+    },
+    {
+      topicId: 'topic-unit-4',
+      topicTitle: 'Clustering & Dimensionality Reduction',
+      unitName: 'Unit 4: Unsupervised Learning',
+      questionsAttempted: 0,
+      correctAnswers: 0,
+      incorrectAnswers: 0,
+      scorePercentage: 0,
+      status: 'NOT_ASSESSED',
+      gapReason: 'No diagnostic quiz has been taken yet for this unit.',
+      recommendation: 'Take a quick 5-question diagnostic quiz on K-Means and PCA to establish your baseline score.',
+      examFrequency: 3,
+      history: [],
+    },
+  ],
+};
+
+export const DEMO_REVISION_PLAN: RevisionPlan = {
+  id: 'rev-plan-1',
+  userId: DEMO_USER.id,
+  subjectId: DEMO_SUBJECT.id,
+  daysRemaining: 4,
+  hoursPerDay: 2.5,
+  totalTasks: 6,
+  completedTasks: 2,
+  createdAt: '2025-01-16T15:00:00Z',
+  updatedAt: '2025-01-16T15:00:00Z',
+  tasks: [
+    {
+      id: 'task-1',
+      revisionPlanId: 'rev-plan-1',
+      dayNumber: 1,
+      topicId: 'topic-unit-3',
+      topicTitle: 'Backpropagation & Activation Functions',
+      focusArea: 'Chain Rule Derivatives & Loss Gradients',
+      durationMinutes: 75,
+      activity: 'Read Textbook Chapter 4 (pages 42–46). Step-by-step paper derivation of dLoss/dW for output and hidden layers.',
+      learningObjective: 'Master manual backpropagation gradient computation without relying on intuition.',
+      sourceReference: {
+        documentName: 'Textbook_Ch4_Deep_Feedforward_Networks.pdf',
+        page: 42,
+      },
+      isCompleted: true,
+    },
+    {
+      id: 'task-2',
+      revisionPlanId: 'rev-plan-1',
+      dayNumber: 1,
+      topicId: 'topic-unit-3',
+      topicTitle: 'Backpropagation & Activation Functions',
+      focusArea: 'Vanishing Gradient Problem & ReLU',
+      durationMinutes: 45,
+      activity: 'Review lecture notes. Write 5-point exam answer explaining why ReLU avoids derivative saturation compared to Sigmoid and Tanh.',
+      learningObjective: 'Address 7-mark recurring question on 2022/2023 past papers.',
+      sourceReference: {
+        documentName: 'Prof_Kapoor_LectureNotes_NeuralNets.txt',
+        page: 4,
+      },
+      isCompleted: true,
+    },
+    {
+      id: 'task-3',
+      revisionPlanId: 'rev-plan-1',
+      dayNumber: 2,
+      topicId: 'topic-unit-2',
+      topicTitle: 'Logistic Regression & Regularization',
+      focusArea: 'L1 vs L2 Regularization & Weight Sparsity',
+      durationMinutes: 60,
+      activity: 'Draw the contour diagrams of MSE error surface vs L1 diamond and L2 circle. Explain why corner tangency yields zero weights.',
+      learningObjective: 'Resolve the confusion between Ridge (shrinkage) and Lasso (feature selection).',
+      sourceReference: {
+        documentName: 'CS301_Official_University_Syllabus.pdf',
+        page: 3,
+      },
+      isCompleted: false,
+    },
+    {
+      id: 'task-4',
+      revisionPlanId: 'rev-plan-1',
+      dayNumber: 2,
+      topicId: 'topic-unit-3',
+      topicTitle: 'Backpropagation & Activation Functions',
+      focusArea: 'Past Examination 10-Mark Practice',
+      durationMinutes: 60,
+      activity: 'Solve 2023 EndSem Question 2 without notes in timed conditions (25 mins). Check against answer key.',
+      learningObjective: 'Build exam speed on high-weightage deep learning questions.',
+      sourceReference: {
+        documentName: 'EndSem_Exam_2023_QuestionPaper.pdf',
+        page: 2,
+      },
+      isCompleted: false,
+    },
+    {
+      id: 'task-5',
+      revisionPlanId: 'rev-plan-1',
+      dayNumber: 3,
+      topicId: 'topic-unit-4',
+      topicTitle: 'Clustering & Dimensionality Reduction',
+      focusArea: 'Diagnostic Assessment & K-Means/PCA Core',
+      durationMinutes: 75,
+      activity: 'Take a 5-question diagnostic quiz. Study K-Means Lloyd algorithm steps and PCA variance maximization concept.',
+      learningObjective: 'Convert Unassessed Unit 4 into an assessed mastery baseline.',
+      sourceReference: {
+        documentName: 'CS301_Official_University_Syllabus.pdf',
+        page: 5,
+      },
+      isCompleted: false,
+    },
+    {
+      id: 'task-6',
+      revisionPlanId: 'rev-plan-1',
+      dayNumber: 4,
+      topicId: 'topic-unit-3',
+      topicTitle: 'Backpropagation & Activation Functions',
+      focusArea: 'Final Re-Test & Gap Verification',
+      durationMinutes: 60,
+      activity: 'Take comprehensive Unit 3 re-test to verify weak score improvement from 40% to >= 75%.',
+      learningObjective: 'Achieve Strong status in your weakest exam-heavy topic.',
+      sourceReference: {
+        documentName: 'Textbook_Ch4_Deep_Feedforward_Networks.pdf',
+        page: 50,
+      },
+      isCompleted: false,
+    },
+  ],
+};
+
+export const DEMO_SAMPLE_CHUNKS: DocumentChunk[] = [
+  {
+    id: 'chk-1',
+    documentId: 'doc-2',
+    userId: DEMO_USER.id,
+    content: 'Section 4.3 Back-Propagation Algorithm: The back-propagation algorithm allows the information from the cost to flow backward through the network in order to compute the gradient. For a feedforward network with scalar output loss L, the gradient with respect to hidden weights W is computed via the chain rule: dL/dW = dL/da * da/dz * dz/dW, where a = sigma(z) is the activation.',
+    pageNumber: 42,
+    chunkIndex: 1,
+    metadata: {
+      fileName: 'Textbook_Ch4_Deep_Feedforward_Networks.pdf',
+      documentType: 'textbook',
+      subjectId: DEMO_SUBJECT.id,
+    },
+  },
+  {
+    id: 'chk-2',
+    documentId: 'doc-2',
+    userId: DEMO_USER.id,
+    content: 'Section 4.4 The Vanishing Gradient Problem: When using saturating activation functions such as the logistic sigmoid or hyperbolic tangent, their derivatives approach zero whenever the input has large magnitude (|z| >> 0). In deep networks, multiplying these fractional derivatives across multiple layers causes the gradients in early layers to vanish, preventing weight updates.',
+    pageNumber: 45,
+    chunkIndex: 2,
+    metadata: {
+      fileName: 'Textbook_Ch4_Deep_Feedforward_Networks.pdf',
+      documentType: 'textbook',
+      subjectId: DEMO_SUBJECT.id,
+    },
+  },
+  {
+    id: 'chk-3',
+    documentId: 'doc-3',
+    userId: DEMO_USER.id,
+    content: 'Rectified Linear Unit (ReLU): Defined as f(z) = max(0, z). For all positive inputs z > 0, the derivative is strictly 1. This constant derivative prevents gradient decay across deep computational layers, allowing efficient gradient propagation in deep networks.',
+    pageNumber: 4,
+    chunkIndex: 3,
+    metadata: {
+      fileName: 'Prof_Kapoor_LectureNotes_NeuralNets.txt',
+      documentType: 'notes',
+      subjectId: DEMO_SUBJECT.id,
+    },
+  },
+];
+
+export const DEMO_CHAT_MESSAGES: ChatMessage[] = [
+  {
+    id: 'msg-1',
+    role: 'user',
+    content: 'Can you explain why the vanishing gradient problem happens with the Sigmoid activation function and how ReLU solves it?',
+    timestamp: '2025-01-16T15:30:00Z',
+  },
+  {
+    id: 'msg-2',
+    role: 'assistant',
+    content: `Based on your uploaded course textbook and professor's lecture notes:
+
+### 1. Why Vanishing Gradients Occur with Sigmoid
+When using the logistic sigmoid function, its maximum possible derivative is **0.25** (which occurs at $z = 0$). When inputs are moderately large positive or negative values, the curve flattens out, and the derivative approaches **0**. 
+
+In deep networks, backpropagation multiplies these gradients layer-by-layer using the chain rule:
+$$\\frac{\\partial L}{\\partial W^{(1)}} = \\frac{\\partial L}{\\partial a^{(k)}} \\prod_{j=1}^{k} \\frac{\\partial a^{(j)}}{\\partial z^{(j)}} \\frac{\\partial z^{(j)}}{\\partial W^{(j)}}$$
+
+Because each derivative factor is at most $0.25$, multiplying them across multiple layers causes the gradient to decay exponentially toward zero, preventing earlier layers from learning.
+
+### 2. How ReLU Resolves It
+The **Rectified Linear Unit (ReLU)** is defined as:
+$$f(z) = \\max(0, z)$$
+For any positive activation ($z > 0$), its derivative is **identically 1.0**. Consequently, gradients pass through active neurons without being shrunk, allowing deep architectures to train efficiently.`,
+    citations: [
+      {
+        source: 'Textbook_Ch4_Deep_Feedforward_Networks.pdf',
+        page: 45,
+        textExcerpt: 'Multiplying fractional derivatives across multiple layers causes the gradients in early layers to vanish.',
+      },
+      {
+        source: 'Prof_Kapoor_LectureNotes_NeuralNets.txt',
+        page: 4,
+        textExcerpt: 'For all positive inputs z > 0, the derivative is strictly 1. This constant derivative prevents gradient decay.',
+      },
+    ],
+    timestamp: '2025-01-16T15:30:15Z',
+  },
+];
