@@ -85,13 +85,19 @@ export default function ChatPage() {
       if (data.success && data.message) {
         setMessages((prev) => [...prev, data.message]);
       } else {
-        throw new Error(data.error || 'Chat request failed');
+        const fallbackMsg: ChatMessage = {
+          id: `msg-${Date.now()}-res`,
+          role: 'assistant',
+          content: data.error || 'I could not process that request right now. Please try asking again.',
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, fallbackMsg]);
       }
-    } catch (err: any) {
+    } catch {
       const errorMsg: ChatMessage = {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: `Error: ${err.message || 'Unable to connect to AI Assistant'}. Please check your connection or GROQ_API_KEY.`,
+        content: 'I had trouble connecting to the study assistant service. Please check that your server is running and try again.',
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -159,7 +165,7 @@ export default function ChatPage() {
             </span>
           </div>
           <span className="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-medium border border-indigo-200">
-            Groq LLaMA 3.3
+            Groq GPT-OSS 120B
           </span>
         </div>
 
