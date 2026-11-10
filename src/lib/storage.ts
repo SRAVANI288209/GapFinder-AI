@@ -118,8 +118,26 @@ export const StorageService = {
     if (isSupabaseConfigured()) {
       const supabase = getServerSupabase();
       if (supabase) {
-        await supabase.from('documents').delete().eq('id', documentId).eq('user_id', userId);
+        // 1. Delete associated physical file from Supabase Storage if present
+        const { data: docData } = await supabase
+          .from('documents')
+          .select('file_path')
+          .eq('id', documentId)
+          .single();
+
+        if (docData?.file_path) {
+          try {
+            await supabase.storage.from('documents').remove([docData.file_path]);
+          } catch (storageErr) {
+            console.warn('Storage file deletion error:', storageErr);
+          }
+        }
+
+        // 2. Delete associated chunks from pgvector
         await supabase.from('document_chunks').delete().eq('document_id', documentId);
+
+        // 3. Delete document record
+        await supabase.from('documents').delete().eq('id', documentId).eq('user_id', userId);
       }
     }
 
@@ -377,23 +395,159 @@ export const StorageService = {
 
   // 7. Quiz Sessions
   async saveQuizSession(userId: string, session: QuizSession): Promise<void> {
+    if (isSupabaseConfigured()) {
+      const supabase = getServerSupabase();
+      if (supabase) {
+        await supabase.from('quiz_sessions').insert({
+          id: session.id,
+          user_id: userId,
+          subject_id: session.subjectId,
+          topic_id: session.topicId,
+          topic_name: session.topicName,
+          difficulty: session.difficulty,
+          total_questions: session.totalQuestions,
+          score_percentage: session.scorePercentage,
+          created_at: session.createdAt,
+        });
+      }
+    }
+
     const sessions = globalMemoryStore.quizSessions.get(userId) || [];
     globalMemoryStore.quizSessions.set(userId, [session, ...sessions]);
   },
 
   async getQuizSessions(userId: string): Promise<QuizSession[]> {
-    return globalMemoryStore.quizSessions.get(userId) || [];
+    if (isSupabaseConfigured()) {
+      const supabase = getServerSupabase();
+      if (supabase) {
+        const { data } = await supabase
+          .from('quiz_sessions')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (data && data.length > 0) {
+          return data.map((d: any) => ({
+            id: d.id,
+            userId: d.user_id,
+            subjectId: d.subject_id,
+            topicId: d.topic_id,
+            topicName: d.topic_name,
+            difficulty: d.difficulty,
+            totalQuestions: d.total_questions,
+            scorePercentage: Number(d.score_percentage || 0),
+            questions: [],
+            answers: [],
+            createdAt: d.created_at,
+          }));
+        }
+      }
+    }
+
+    const sessions = globalMemoryStore.quizSessions.get(userId) || [];
+    if (sessions.length === 0 && userId.includes('demo')) {
+      const defaultDemoSessions: QuizSession[] = [
+        {
+          id: 'sess-demo-1',
+          userId,
+          subjectId: 'subj-cs301',
+          topicId: 'topic-unit-1',
+          topicName: 'Linear Regression & Cost Functions',
+          difficulty: 'intermediate',
+          totalQuestions: 6,
+          scorePercentage: 92,
+          questions: [],
+          answers: [],
+          createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+        },
+        {
+          id: 'sess-demo-2',
+          userId,
+          subjectId: 'subj-cs301',
+          topicId: 'topic-unit-2',
+          topicName: 'Logistic Regression & Regularization',
+          difficulty: 'intermediate',
+          totalQuestions: 4,
+          scorePercentage: 62,
+          questions: [],
+          answers: [],
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+        },
+        {
+          id: 'sess-demo-3',
+          userId,
+          subjectId: 'subj-cs301',
+          topicId: 'topic-unit-3',
+          topicName: 'Backpropagation & Activation Functions',
+          difficulty: 'advanced',
+          totalQuestions: 5,
+          scorePercentage: 40,
+          questions: [],
+          answers: [],
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      globalMemoryStore.quizSessions.set(userId, defaultDemoSessions);
+      return defaultDemoSessions;
+    }
+    return sessions;
   },
 
   // 8. Chat
   async getChatHistory(userId: string): Promise<ChatMessage[]> {
+    if (isSupabaseConfigured()) {
+      const supabase = getServerSupabase();
+      if (supabase) {
+        const { data } = await supabase
+          .from('chat_history')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: true });
+
+        if (data && data.length > 0) {
+          return data.map((c: any) => ({
+            id: c.id,
+            role: c.role,
+            content: c.content,
+            citations: c.citations || [],
+            timestamp: c.created_at,
+          }));
+        }
+      }
+    }
+
     const history = globalMemoryStore.chatHistory.get(userId);
     if (history && history.length > 0) return history;
     return [...DEMO_CHAT_MESSAGES];
   },
 
   async saveChatMessage(userId: string, msg: ChatMessage): Promise<void> {
+    if (isSupabaseConfigured()) {
+      const supabase = getServerSupabase();
+      if (supabase) {
+        await supabase.from('chat_history').insert({
+          id: msg.id,
+          user_id: userId,
+          role: msg.role,
+          content: msg.content,
+          citations: msg.citations || [],
+          created_at: msg.timestamp,
+        });
+      }
+    }
+
     const history = globalMemoryStore.chatHistory.get(userId) || [];
     globalMemoryStore.chatHistory.set(userId, [...history, msg]);
+  },
+
+  async clearChatHistory(userId: string): Promise<void> {
+    if (isSupabaseConfigured()) {
+      const supabase = getServerSupabase();
+      if (supabase) {
+        await supabase.from('chat_history').delete().eq('user_id', userId);
+      }
+    }
+
+    globalMemoryStore.chatHistory.set(userId, []);
   },
 };

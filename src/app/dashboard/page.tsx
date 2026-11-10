@@ -19,6 +19,7 @@ import {
   Sparkles,
   ChevronRight,
   RefreshCw,
+  GraduationCap,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -30,8 +31,10 @@ import {
   PieChart,
   Pie,
   Cell,
+  CartesianGrid,
 } from 'recharts';
-import { KnowledgeGapReport, RevisionPlan, DocumentRecord } from '@/types';
+import { KnowledgeGapReport, RevisionPlan, DocumentRecord, QuizSession } from '@/types';
+import { createClient } from '@/lib/supabase/client';
 
 const STATUS_COLORS: Record<string, string> = {
   WEAK: '#ef4444',
@@ -44,24 +47,52 @@ export default function DashboardPage() {
   const [report, setReport] = useState<KnowledgeGapReport | null>(null);
   const [plan, setPlan] = useState<RevisionPlan | null>(null);
   const [docs, setDocs] = useState<DocumentRecord[]>([]);
+  const [quizSessions, setQuizSessions] = useState<QuizSession[]>([]);
+  const [studentName, setStudentName] = useState('Student');
+  const [isDemoUser, setIsDemoUser] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const loadData = async () => {
+  // Load dynamic student profile
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('gapfinder_user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.fullName) setStudentName(parsed.fullName);
+        if (parsed.isDemo || parsed.email === 'demo@gapfinder.ai') setIsDemoUser(true);
+      } else {
+        const supabase = createClient();
+        supabase.auth.getUser().then(({ data }) => {
+          if (data?.user?.user_metadata?.full_name) {
+            setStudentName(data.user.user_metadata.full_name);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  }, []);
+
+  // Fetch all real-time dynamic statistics
+  const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const [resReport, resPlan, resDocs] = await Promise.all([
+      const [resReport, resPlan, resDocs, resSessions] = await Promise.all([
         fetch('/api/gap-report'),
         fetch('/api/revision-plan'),
         fetch('/api/documents'),
+        fetch('/api/quiz/evaluate'),
       ]);
 
       const dataReport = await resReport.json();
       const dataPlan = await resPlan.json();
       const dataDocs = await resDocs.json();
+      const dataSessions = await resSessions.json();
 
       if (dataReport.success) setReport(dataReport.report);
       if (dataPlan.success) setPlan(dataPlan.plan);
       if (dataDocs.success) setDocs(dataDocs.documents);
+      if (dataSessions.success) setQuizSessions(dataSessions.sessions);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -70,7 +101,7 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    loadData();
+    loadDashboardData();
   }, []);
 
   const toggleTask = async (taskId: string, currentStatus: boolean) => {
@@ -89,6 +120,16 @@ export default function DashboardPage() {
     }
   };
 
+  // Dynamic metrics calculation
+  const completedQuizzesCount = quizSessions.length;
+  const averageQuizScore =
+    completedQuizzesCount > 0
+      ? Math.round(
+          quizSessions.reduce((acc, s) => acc + (s.scorePercentage || 0), 0) /
+            completedQuizzesCount
+        )
+      : report?.overallMasteryPercentage || 0;
+
   // Pie chart data
   const pieData = report
     ? [
@@ -99,7 +140,7 @@ export default function DashboardPage() {
       ].filter((d) => d.value > 0)
     : [];
 
-  // Bar chart data
+  // Bar chart data from actual topic performances
   const barData = report
     ? report.topics.map((t) => ({
         name: t.topicTitle.length > 18 ? t.topicTitle.slice(0, 18) + '...' : t.topicTitle,
@@ -114,32 +155,41 @@ export default function DashboardPage() {
       subtitle="AI-driven syllabus diagnosis and knowledge-gap tracking"
       actions={
         <button
-          onClick={loadData}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors shadow-sm"
-          title="Refresh metrics"
+          onClick={loadDashboardData}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors shadow-xs cursor-pointer"
+          title="Refresh metrics from database"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
+          <span>Refresh Data</span>
         </button>
       }
     >
-      {/* Welcome Banner */}
+      {/* Welcome Hero Banner with Dynamic Student Name */}
       <div className="mb-6 p-6 rounded-2xl bg-gradient-to-r from-indigo-900 via-indigo-850 to-purple-900 text-white shadow-md relative overflow-hidden">
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 text-indigo-200 text-xs font-semibold mb-3 border border-white/10">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Diagnosis Snapshot: CS-301 Machine Learning</span>
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-indigo-200 text-xs font-semibold border border-white/10">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Diagnostic Snapshot: CS-301 Machine Learning</span>
+            </span>
+            {isDemoUser && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-300/30 text-[11px] font-bold">
+                DEMO PROFILE ACTIVE
+              </span>
+            )}
           </div>
+
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Welcome back, Arjun!
+            Welcome back, {studentName}!
           </h2>
           <p className="mt-2 text-xs sm:text-sm text-indigo-100 font-normal leading-relaxed">
-            GapFinder AI analyzed your course documents. You currently have{' '}
+            GapFinder AI analyzed your uploaded documents and {completedQuizzesCount} quiz session(s). You currently have{' '}
             <strong className="text-amber-300 underline font-bold">
-              {report?.weakCount || 1} high-priority knowledge gap
+              {report?.weakCount || 0} critical knowledge gap(s)
             </strong>{' '}
-            in Deep Neural Networks that frequently appears on past semester exams.
+            identified for exam preparation.
           </p>
+
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
               href="/gap-report"
@@ -149,26 +199,26 @@ export default function DashboardPage() {
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
             <Link
-              href="/revision-plan"
+              href="/chat"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-700/60 hover:bg-indigo-700 text-white text-xs font-semibold border border-indigo-500/50 transition-all"
             >
-              <span>View Daily Revision Plan</span>
+              <span>Ask AI Assistant</span>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Top 4 Metrics Cards */}
+      {/* Top 4 Dynamic Metrics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Uploaded Material</span>
+            <span className="text-xs font-medium text-slate-500">Uploaded Documents</span>
             <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
               <FileText className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-bold text-slate-900 mt-2">
-            {docs.length || 4}
+            {docs.length}
           </div>
           <div className="text-[11px] text-slate-500 mt-0.5">Syllabus, notes & papers</div>
         </div>
@@ -183,37 +233,37 @@ export default function DashboardPage() {
           <div className="text-2xl font-bold text-slate-900 mt-2">
             {report?.totalTopics || 4}
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Across 4 syllabus units</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Across syllabus units</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Assessed Topics</span>
+            <span className="text-xs font-medium text-slate-500">Completed Quizzes</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <HelpCircle className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-bold text-slate-900 mt-2">
-            {report?.assessedTopics || 3}
+            {completedQuizzesCount}
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Via diagnostic tests</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Diagnostic test attempts</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Average Mastery</span>
+            <span className="text-xs font-medium text-slate-500">Average Quiz Score</span>
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
               <Award className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-bold text-slate-900 mt-2">
-            {report?.overallMasteryPercentage || 64}%
+            {averageQuizScore}%
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Goal: &gt;= 80% before exam</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Calculated from actual attempts</div>
         </div>
       </div>
 
-      {/* Topic Status Breakdown Pills */}
+      {/* Dynamic Topic Status Breakdown */}
       <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -221,14 +271,14 @@ export default function DashboardPage() {
               Knowledge Gap Status Summary
             </h3>
             <p className="text-xs text-slate-500">
-              Thresholds: 0–49% Weak • 50–74% Medium • 75–100% Strong
+              Thresholds: 0–49% Weak • 50–74% Medium • 75–100% Strong • No Attempts: Not Assessed
             </p>
           </div>
           <Link
             href="/gap-report"
             className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
           >
-            Full Gap Breakdown →
+            Learning Signal Report →
           </Link>
         </div>
 
@@ -246,7 +296,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="text-xl font-extrabold text-rose-700">
-              {report?.weakCount || 1}
+              {report?.weakCount || 0}
             </div>
           </div>
 
@@ -263,7 +313,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="text-xl font-extrabold text-amber-700">
-              {report?.mediumCount || 1}
+              {report?.mediumCount || 0}
             </div>
           </div>
 
@@ -280,7 +330,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="text-xl font-extrabold text-emerald-700">
-              {report?.strongCount || 1}
+              {report?.strongCount || 0}
             </div>
           </div>
 
@@ -291,13 +341,13 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                  Unassessed
+                  Not Assessed
                 </div>
                 <div className="text-xs text-slate-500">Pending Quiz</div>
               </div>
             </div>
             <div className="text-xl font-extrabold text-slate-700">
-              {report?.notAssessedCount || 1}
+              {report?.notAssessedCount || 0}
             </div>
           </div>
         </div>
@@ -313,7 +363,7 @@ export default function DashboardPage() {
                 Topic Mastery Comparison
               </h3>
               <p className="text-xs text-slate-500">
-                Live evaluation scores from diagnostic quiz attempts
+                Live scores calculated from student quiz submissions
               </p>
             </div>
             <div className="flex items-center gap-2 text-xs">
@@ -329,6 +379,7 @@ export default function DashboardPage() {
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} interval={0} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748b' }} unit="%" />
                 <Tooltip
@@ -404,22 +455,80 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Two Column Section: Upcoming Revision Tasks & High Priority Gaps */}
+      {/* Two Column Section: Recent Quiz Attempts & Upcoming Revision Tasks */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Quiz Attempts */}
+        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-indigo-600" />
+              <h3 className="text-sm font-bold text-slate-900">
+                Recent Diagnostic Quiz Attempts ({quizSessions.length})
+              </h3>
+            </div>
+            <Link
+              href="/quiz"
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+            >
+              Take Quiz →
+            </Link>
+          </div>
+
+          <div className="space-y-3">
+            {quizSessions.slice(0, 4).map((sess) => (
+              <div
+                key={sess.id}
+                className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between"
+              >
+                <div>
+                  <div className="text-xs font-bold text-slate-900">
+                    {sess.topicName || 'Diagnostic Assessment'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    {sess.createdAt ? new Date(sess.createdAt).toLocaleDateString() : 'Recent'} • {sess.totalQuestions} Questions • {sess.difficulty}
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-sm font-bold text-slate-900">
+                    {sess.scorePercentage}%
+                  </div>
+                  <TopicBadge
+                    status={
+                      sess.scorePercentage < 50
+                        ? 'WEAK'
+                        : sess.scorePercentage < 75
+                        ? 'MEDIUM'
+                        : 'STRONG'
+                    }
+                    size="sm"
+                  />
+                </div>
+              </div>
+            ))}
+
+            {quizSessions.length === 0 && (
+              <div className="text-center py-6 text-xs text-slate-400">
+                No quiz attempts recorded yet. Click "Take Quiz" to begin your first diagnostic test.
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Revision Tasks */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CalendarCheck className="w-4 h-4 text-indigo-600" />
               <h3 className="text-sm font-bold text-slate-900">
-                Today's Revision Schedule
+                Upcoming Revision Tasks
               </h3>
             </div>
             <Link
               href="/revision-plan"
               className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
             >
-              Manage Plan ({plan?.completedTasks || 0}/{plan?.totalTasks || 0}) →
+              Full Plan ({plan?.completedTasks || 0}/{plan?.totalTasks || 0}) →
             </Link>
           </div>
 
@@ -465,56 +574,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Priority Focus Gaps */}
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600" />
-              <h3 className="text-sm font-bold text-slate-900">
-                Critical Knowledge Gap Remediation
-              </h3>
-            </div>
-            <Link
-              href="/quiz"
-              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-            >
-              Test Topics →
-            </Link>
-          </div>
-
-          <div className="space-y-3">
-            {report?.topics
-              .filter((t) => t.status === 'WEAK' || t.status === 'MEDIUM')
-              .map((top) => (
-                <div
-                  key={top.topicId}
-                  className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-slate-900 truncate">
-                      {top.topicTitle}
-                    </span>
-                    <TopicBadge status={top.status} score={top.scorePercentage} size="sm" />
-                  </div>
-                  <p className="text-xs text-slate-600 mt-1.5">
-                    <strong>Diagnosis:</strong> {top.gapReason}
-                  </p>
-                  <div className="mt-2 text-[11px] text-indigo-700 font-medium bg-indigo-50/60 p-2 rounded-lg border border-indigo-100 flex items-center justify-between">
-                    <span className="truncate">{top.recommendation}</span>
-                    <Link
-                      href={`/quiz?topicId=${top.topicId}&topicTitle=${encodeURIComponent(
-                        top.topicTitle
-                      )}`}
-                      className="ml-2 font-bold shrink-0 text-indigo-900 hover:underline"
-                    >
-                      Re-Test
-                    </Link>
-                  </div>
-                </div>
-              ))}
           </div>
         </div>
       </div>

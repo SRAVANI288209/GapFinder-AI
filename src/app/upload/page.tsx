@@ -15,6 +15,8 @@ import {
   Layers,
   Sparkles,
   Loader2,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 
 const DOC_TYPE_META: Record<
@@ -52,9 +54,15 @@ export default function UploadPage() {
   const [selectedType, setSelectedType] = useState<DocumentType>('textbook');
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [processingStage, setProcessingStage] = useState<'Uploaded' | 'Processing' | 'Processed' | 'Failed' | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loadingDocs, setLoadingDocs] = useState(true);
+
+  // Deletion Confirmation Modal State
+  const [docToDelete, setDocToDelete] = useState<DocumentRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch document list
   const loadDocuments = async () => {
@@ -77,36 +85,48 @@ export default function UploadPage() {
 
   // Handle file upload
   const handleFileUpload = async (file: File) => {
-    // Validation
+    // 1. Validation for file format
     const validExtensions = ['.pdf', '.txt'];
     const hasValidExt = validExtensions.some((ext) =>
       file.name.toLowerCase().endsWith(ext)
     );
 
     if (!hasValidExt) {
-      setErrorMessage('Please upload a PDF (.pdf) or Text (.txt) file.');
+      setErrorMessage('Unsupported file format. Please upload a PDF (.pdf) or Text (.txt) file.');
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) {
-      setErrorMessage('File size exceeds 15MB limit.');
+    // 2. Strict 5 MB maximum file size limit
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_FILE_SIZE) {
+      setErrorMessage(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the maximum allowed limit of 5 MB.`);
+      return;
+    }
+
+    // 3. Prevent duplicate uploads
+    const isDuplicate = documents.some(
+      (d) => d.fileName.toLowerCase() === file.name.toLowerCase()
+    );
+    if (isDuplicate) {
+      setErrorMessage(`"${file.name}" has already been uploaded. Please rename or delete the previous version before uploading again.`);
       return;
     }
 
     setUploading(true);
     setErrorMessage('');
-    setStatusMessage('1/4 Extracting document text & page metadata...');
+    setSuccessMessage('');
+    setProcessingStage('Uploaded');
+    setStatusMessage('Document uploaded. Preparing text extraction...');
 
     try {
+      setProcessingStage('Processing');
+      setStatusMessage('Extracting text & page markers from document...');
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('documentType', selectedType);
       formData.append('userId', 'demo-student-uuid-101');
       formData.append('subjectId', 'subj-cs301');
-
-      setTimeout(() => setStatusMessage('2/4 Chunking text with contextual overlap...'), 800);
-      setTimeout(() => setStatusMessage('3/4 Generating 768-dim embeddings via Gemini API...'), 1600);
-      setTimeout(() => setStatusMessage('4/4 Persisting vectors to Supabase pgvector...'), 2400);
 
       const res = await fetch('/api/documents', {
         method: 'POST',
@@ -116,34 +136,87 @@ export default function UploadPage() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Upload failed');
+        throw new Error(data.error || 'Upload processing failed');
       }
 
-      setStatusMessage('Document indexed and ready for RAG retrieval!');
+      setProcessingStage('Processed');
+      setSuccessMessage(`"${file.name}" successfully parsed, chunked, and embedded into pgvector!`);
+      setStatusMessage('');
       await loadDocuments();
     } catch (err: any) {
+      setProcessingStage('Failed');
       setErrorMessage(err.message || 'Error processing document.');
     } finally {
       setUploading(false);
-      setTimeout(() => setStatusMessage(''), 3000);
+      setTimeout(() => {
+        setProcessingStage(null);
+      }, 5000);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to remove this document from the RAG index?')) return;
+  // Perform actual deletion from database, storage, and pgvector
+  const confirmDelete = async () => {
+    if (!docToDelete) return;
+    setIsDeleting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
     try {
-      await fetch(`/api/documents/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/documents/${docToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to delete document from storage');
+      }
+
+      setSuccessMessage(`Document "${docToDelete.fileName}" was deleted from database, storage, and vector index.`);
+      setDocToDelete(null);
       await loadDocuments();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error deleting document.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
     <AppLayout
       title="Upload Course Study Materials"
-      subtitle="PDF and TXT extraction, text chunking, and pgvector embedding storage"
+      subtitle="PDF and TXT extraction, text chunking, and pgvector embedding storage (Max 5 MB)"
     >
+      {/* Toast Messages */}
+      {successMessage && (
+        <div className="mb-4 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+          <button
+            onClick={() => setSuccessMessage('')}
+            className="text-emerald-700 hover:text-emerald-900"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage('')}
+            className="text-rose-700 hover:text-rose-900"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Upload Column */}
         <div className="lg:col-span-2 space-y-6">
@@ -215,12 +288,12 @@ export default function UploadPage() {
               Upload your {DOC_TYPE_META[selectedType].label}
             </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              Drag and drop your PDF or TXT file here, or browse from your computer. Max 15MB.
+              Drag and drop your PDF or TXT file here. Maximum file size: <strong>5 MB</strong>.
             </p>
 
             <div className="mt-5">
               <label className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm cursor-pointer shadow-sm shadow-indigo-200 transition-all active:scale-95">
-                <span>Select File from Device</span>
+                <span>Select File from Device (Max 5MB)</span>
                 <input
                   type="file"
                   accept=".pdf,.txt"
@@ -238,14 +311,9 @@ export default function UploadPage() {
             {uploading && (
               <div className="mt-6 p-4 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center gap-3 text-indigo-900 text-xs font-semibold animate-pulse">
                 <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                <span>{statusMessage}</span>
-              </div>
-            )}
-
-            {errorMessage && (
-              <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                <span>{errorMessage}</span>
+                <span>
+                  Status: <strong>{processingStage}</strong> — {statusMessage}
+                </span>
               </div>
             )}
           </div>
@@ -256,40 +324,31 @@ export default function UploadPage() {
           <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm">
             <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm mb-2">
               <Sparkles className="w-4 h-4" />
-              <span>What Material Should You Upload?</span>
+              <span>Processing Stages</span>
             </div>
             <ul className="text-xs text-slate-600 space-y-2 mt-3 leading-relaxed">
-              <li>
-                <strong>1. Syllabus PDF:</strong> Allows AI to build your complete Unit → Topic hierarchy and detect unassessed units.
+              <li className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
+                <span><strong>Uploaded:</strong> Binary file validated and accepted.</span>
               </li>
-              <li>
-                <strong>2. Textbook Chapters:</strong> Powers exact page citations when answering questions and grading diagnostic quizzes.
+              <li className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-50 text-amber-700 font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
+                <span><strong>Processing:</strong> Text extraction, sentence-boundary chunking, and vector embedding generation.</span>
               </li>
-              <li>
-                <strong>3. Lecture Notes:</strong> Highlights professor-specific emphasis, abbreviations, and derivation formats.
+              <li className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-700 font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
+                <span><strong>Processed:</strong> Vectors stored in pgvector, ready for AI Assistant and quizzes.</span>
               </li>
-              <li>
-                <strong>4. Past Question Papers:</strong> Maps recurring questions to identify high-frequency exam topics.
+              <li className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-rose-50 text-rose-700 font-bold flex items-center justify-center text-[10px] shrink-0">4</span>
+                <span><strong>Failed:</strong> Document rejected if encrypted, corrupted, or larger than 5 MB.</span>
               </li>
             </ul>
-          </div>
-
-          <div className="p-5 bg-slate-900 text-slate-200 rounded-2xl shadow-sm text-xs font-mono">
-            <span className="text-indigo-400 font-bold block mb-1">
-              RAG Ingestion Pipeline
-            </span>
-            <div className="text-slate-400 space-y-1 mt-2 text-[11px]">
-              <div>1. PDF Parsing via pdf-parse</div>
-              <div>2. Whitespace & ASCII normalization</div>
-              <div>3. Sentence-boundary chunking (~1200 chars)</div>
-              <div>4. Gemini text-embedding-004 (768d)</div>
-              <div>5. Supabase pgvector storage</div>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Uploaded Documents List */}
+      {/* Uploaded Documents List with Delete Button */}
       <div className="mt-8 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div>
@@ -297,7 +356,7 @@ export default function UploadPage() {
               Active Course Materials ({documents.length})
             </h3>
             <p className="text-xs text-slate-500">
-              These files feed the RAG vector database for quizzes and chatbot citations
+              Document Workflow: Document name, classification type, processing status, and deletion
             </p>
           </div>
         </div>
@@ -331,15 +390,20 @@ export default function UploadPage() {
                   </div>
                 </div>
 
+                {/* Status + Delete Button */}
                 <div className="flex items-center gap-3 self-end sm:self-auto">
                   <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-semibold border border-emerald-200">
-                    <CheckCircle2 className="w-3 h-3" />
-                    <span>Indexed</span>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Processed</span>
                   </span>
+
+                  {/* Delete Button with Trash Icon */}
                   <button
-                    onClick={() => handleDelete(doc.id)}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                    title="Delete document"
+                    type="button"
+                    onClick={() => setDocToDelete(doc)}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-slate-200"
+                    title={`Delete "${doc.fileName}"`}
+                    aria-label={`Delete ${doc.fileName}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -349,6 +413,61 @@ export default function UploadPage() {
           })}
         </div>
       </div>
+
+      {/* Confirmation Dialog Modal */}
+      {docToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center gap-3 text-rose-600 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Confirm Document Deletion</h3>
+                <p className="text-xs text-slate-500">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed mb-4">
+              Are you sure you want to delete this document?
+              <br />
+              <strong className="text-slate-900 mt-1 block">
+                "{docToDelete.fileName}"
+              </strong>
+              This will remove the file from Supabase Storage and remove all associated text chunks and embeddings from the vector database.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDocToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={confirmDelete}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Yes, Delete Document</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

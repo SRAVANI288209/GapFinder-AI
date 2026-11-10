@@ -4,6 +4,18 @@ import { GapAnalyzer } from '@/lib/gap-analyzer';
 import { StorageService } from '@/lib/storage';
 import { QuizQuestion, StudentAnswer, QuizSession } from '@/types';
 
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId') || 'demo-student-uuid-101';
+
+    const sessions = await StorageService.getQuizSessions(userId);
+    return NextResponse.json({ success: true, sessions });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
