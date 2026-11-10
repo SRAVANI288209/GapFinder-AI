@@ -154,6 +154,39 @@ export const StorageService = {
     );
   },
 
+  async deleteAllDocuments(userId: string): Promise<void> {
+    if (isSupabaseConfigured()) {
+      const supabase = getServerSupabase();
+      if (supabase) {
+        // 1. Remove all files from Supabase Storage
+        const { data: userDocs } = await supabase
+          .from('documents')
+          .select('file_path')
+          .eq('user_id', userId);
+
+        if (userDocs && userDocs.length > 0) {
+          const paths = userDocs.map((d) => d.file_path).filter(Boolean);
+          if (paths.length > 0) {
+            try {
+              await supabase.storage.from('documents').remove(paths);
+            } catch (err) {
+              console.warn('Storage batch deletion error:', err);
+            }
+          }
+        }
+
+        // 2. Delete all chunks from pgvector
+        await supabase.from('document_chunks').delete().eq('user_id', userId);
+
+        // 3. Delete all documents from database
+        await supabase.from('documents').delete().eq('user_id', userId);
+      }
+    }
+
+    globalMemoryStore.documents.set(userId, []);
+    globalMemoryStore.chunks.set(userId, []);
+  },
+
   // 2. Chunks
   async saveChunks(userId: string, chunks: DocumentChunk[]): Promise<void> {
     if (isSupabaseConfigured()) {

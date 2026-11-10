@@ -4,17 +4,15 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard,
-  UploadCloud,
-  Network,
-  HelpCircle,
-  FileSearch,
+  Gauge,
+  FileUp,
+  BookOpen,
+  Brain,
+  Activity,
+  MessageSquare,
   CalendarCheck,
   TrendingUp,
-  MessageSquareText,
   LogOut,
-  BrainCircuit,
-  BookOpen,
   Sparkles,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -24,75 +22,67 @@ export interface NavItemConfig {
   href: string;
   aliases?: string[];
   icon: any;
-  badge: string | null;
-  highlight?: boolean;
+  badge?: string | null;
 }
 
 export const NAV_ITEMS: NavItemConfig[] = [
   {
     name: 'Overview',
     href: '/dashboard',
-    aliases: ['/overview'],
-    icon: LayoutDashboard,
-    badge: null,
+    aliases: ['/overview', '/'],
+    icon: Gauge,
   },
   {
     name: 'Upload',
     href: '/upload',
-    icon: UploadCloud,
-    badge: null,
+    icon: FileUp,
   },
   {
     name: 'Topics',
     href: '/topics',
-    icon: Network,
-    badge: 'Tree',
+    icon: BookOpen,
   },
   {
     name: 'Quiz',
     href: '/quiz',
-    icon: HelpCircle,
-    badge: 'AI',
+    icon: Brain,
   },
   {
     name: 'Learning Signal',
     href: '/gap-report',
     aliases: ['/learning-signal'],
-    icon: FileSearch,
+    icon: Activity,
     badge: 'Core',
-    highlight: true,
   },
   {
     name: 'AI Assistant',
     href: '/chat',
     aliases: ['/ai-assistant'],
-    icon: MessageSquareText,
+    icon: MessageSquare,
     badge: 'Groq',
-    highlight: true,
   },
   {
     name: 'Revision Plan',
     href: '/revision-plan',
     icon: CalendarCheck,
-    badge: null,
   },
   {
     name: 'Progress',
     href: '/progress',
     icon: TrendingUp,
-    badge: null,
   },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [userName, setUserName] = useState('Student');
+  const [userName, setUserName] = useState('Aarav Mehta');
   const [userEmail, setUserEmail] = useState('demo@gapfinder.ai');
+  const [averageConfidence, setAverageConfidence] = useState(60);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    // Dynamically retrieve authenticated student details
+    // Load student profile & dynamic mastery score
     try {
       const stored = localStorage.getItem('gapfinder_user');
       if (stored) {
@@ -100,18 +90,28 @@ export function Sidebar() {
         if (parsed.fullName) setUserName(parsed.fullName);
         if (parsed.email) setUserEmail(parsed.email);
       } else {
-        // Check Supabase session
         const supabase = createClient();
         supabase.auth.getUser().then(({ data }) => {
-          if (data?.user) {
-            setUserEmail(data.user.email || 'student@gapfinder.ai');
-            const metaName = data.user.user_metadata?.full_name;
-            if (metaName) setUserName(metaName);
+          if (data?.user?.user_metadata?.full_name) {
+            setUserName(data.user.user_metadata.full_name);
+          }
+          if (data?.user?.email) {
+            setUserEmail(data.user.email);
           }
         });
       }
+
+      // Fetch dynamic mastery score for the LEARNING SIGNAL card
+      fetch('/api/gap-report')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.report?.overallMasteryPercentage !== undefined) {
+            setAverageConfidence(data.report.overallMasteryPercentage);
+          }
+        })
+        .catch(() => {});
     } catch (e) {
-      console.warn('Could not read user profile:', e);
+      console.warn(e);
     }
   }, []);
 
@@ -129,118 +129,118 @@ export function Sidebar() {
     }
   };
 
-  // Get initials for avatar
-  const initials = userName
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('') || 'ST';
-
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 select-none">
-      {/* Brand Header */}
-      <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+    <aside className="w-64 bg-[#0a0f1d] border-r border-slate-800/80 flex flex-col h-screen sticky top-0 select-none text-slate-200">
+      {/* Brand Header with Blue "G" Logo */}
+      <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-100 group-hover:scale-105 transition-transform">
-            <BrainCircuit className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30 font-extrabold text-xl group-hover:scale-105 transition-transform">
+            G
           </div>
           <div>
-            <div className="font-bold text-slate-900 tracking-tight text-lg flex items-center gap-1">
-              GapFinder <span className="text-indigo-600">AI</span>
+            <div className="font-bold text-white tracking-tight text-lg flex items-center gap-1">
+              GapFinder <span className="text-blue-500">AI</span>
             </div>
-            <div className="text-[10px] text-slate-500 font-medium tracking-wide uppercase">
-              Diagnostic Learning
+            <div className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">
+              Study Intelligence
             </div>
           </div>
         </Link>
       </div>
 
-      {/* Active Subject Selector Card */}
-      <div className="px-4 py-3 bg-slate-50/70 border-b border-slate-100">
-        <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-          <span className="font-semibold uppercase tracking-wider text-[10px] text-slate-400">
-            Current Course
-          </span>
-          <span className="text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">
-            ACTIVE
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-indigo-600 shrink-0" />
-          <div className="truncate">
-            <div className="text-xs font-semibold text-slate-800 truncate">
-              CS-301: Machine Learning
-            </div>
-            <div className="text-[10px] text-slate-400">Semester VI • 4 Units</div>
+      {/* Main Navigation Card Container */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="bg-[#10172a] border border-slate-800/80 rounded-2xl p-4 shadow-sm">
+          {/* Blue NAVIGATION Badge */}
+          <div className="mb-4">
+            <span className="inline-block bg-blue-600 text-white font-extrabold text-[10px] tracking-widest px-2.5 py-0.5 rounded uppercase shadow-xs">
+              NAVIGATION
+            </span>
           </div>
+
+          {/* Navigation Links */}
+          <nav className="space-y-1">
+            {NAV_ITEMS.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.aliases && item.aliases.includes(pathname));
+              const Icon = item.icon;
+
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all group cursor-pointer ${
+                    isActive
+                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/40 shadow-xs shadow-blue-500/10'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon
+                      className={`w-4 h-4 transition-colors ${
+                        isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-blue-400'
+                      }`}
+                    />
+                    <span>{item.name}</span>
+                  </div>
+
+                  {item.badge && (
+                    <span
+                      className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                        isActive
+                          ? 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* LEARNING SIGNAL Sub-Card at bottom of navigation */}
+          <Link
+            href="/gap-report"
+            className="mt-5 block p-4 rounded-xl bg-[#0b1224] border border-blue-900/40 hover:border-blue-700/60 transition-all group cursor-pointer shadow-inner"
+          >
+            <div className="text-[10px] font-extrabold uppercase tracking-widest text-blue-400 flex items-center justify-between">
+              <span>LEARNING SIGNAL</span>
+              <Activity className="w-3.5 h-3.5 text-blue-400 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-3xl font-extrabold text-white mt-1.5 tracking-tight">
+              {averageConfidence}%
+            </div>
+            <div className="text-[11px] text-slate-400 mt-1 font-medium">
+              Average quiz confidence
+            </div>
+          </Link>
         </div>
       </div>
 
-      {/* Navigation Items */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {NAV_ITEMS.map((item) => {
-          const isActive =
-            pathname === item.href || (item.aliases && item.aliases.includes(pathname));
-          const Icon = item.icon;
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all group ${
-                isActive
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Icon
-                  className={`w-4 h-4 transition-colors ${
-                    isActive ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600'
-                  }`}
-                />
-                <span className="font-semibold">{item.name}</span>
-              </div>
-
-              {item.badge && (
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                    isActive
-                      ? 'bg-white/20 text-white'
-                      : item.highlight
-                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                      : 'bg-slate-100 text-slate-500'
-                  }`}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* User Footer & Dynamic Profile */}
-      <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+      {/* User Footer & Logout */}
+      <div className="p-4 border-t border-slate-800/80 bg-[#0d1326]/60">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold uppercase shadow-sm shrink-0">
-              {initials}
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-xs font-bold uppercase shadow-sm shrink-0">
+              {userName.slice(0, 2).toUpperCase()}
             </div>
             <div className="truncate">
-              <div className="text-xs font-semibold text-slate-900 truncate">
+              <div className="text-xs font-bold text-white truncate">
                 {userName}
               </div>
-              <div className="text-[10px] text-slate-500 truncate">{userEmail}</div>
+              <div className="text-[10px] text-slate-400 truncate">{userEmail}</div>
             </div>
           </div>
+
           <button
             type="button"
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-            title="Log out of student account"
+            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+            title="Log out"
             aria-label="Log out"
           >
             <LogOut className={`w-4 h-4 ${isLoggingOut ? 'animate-spin' : ''}`} />

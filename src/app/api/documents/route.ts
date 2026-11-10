@@ -85,3 +85,15 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId') || 'demo-student-uuid-101';
+
+    await StorageService.deleteAllDocuments(userId);
+    return NextResponse.json({ success: true, message: 'All documents deleted successfully' });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
